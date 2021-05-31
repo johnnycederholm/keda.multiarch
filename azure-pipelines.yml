@@ -1,0 +1,37 @@
+trigger: none
+
+pool:
+  vmImage: 'ubuntu-20.04'
+
+variables:
+  DOCKER_CLI_EXPERIMENTAL: enabled
+
+jobs:
+  - job:
+    displayName: Create Docker image
+    steps:
+      - script: |
+          git clone https://github.com/kedacore/keda.git
+          cd keda
+          git checkout v2.2.0
+        displayName: Checkout KEDA repository
+      - script: |
+          git config --global user.email "johnny.k.hansson@gmail.com"
+          git config --global user.name "Johnny Cederholm"
+        displayName: Setup name and email for git
+      - script: |
+          git apply < ../armv7.patch
+        workingDirectory: keda
+        displayName: Apply base image patch
+      - task: Docker@2
+        displayName: Docker Hub login
+        inputs:
+          containerRegistry: 'Docker Hub'
+          command: 'login'
+      - script: |
+          docker run --privileged --rm tonistiigi/binfmt --install all
+          docker buildx create --name builder --use
+          docker buildx inspect builder --bootstrap
+          IMAGE_REGISTRY=docker.io IMAGE_REPO=johnnyhansson VERSION=2.2.0 make publish
+        displayName: Build and push multiarch Docker image
+        workingDirectory: keda

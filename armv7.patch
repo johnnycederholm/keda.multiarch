@@ -1,0 +1,64 @@
+diff --git a/Dockerfile b/Dockerfile
+index 1832d6b..7f84c62 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,5 +1,5 @@
+ # Build the manager binary
+-FROM golang:1.15.6 as builder
++FROM --platform=$BUILDPLATFORM golang:1.15.6 as builder
+ 
+ ARG BUILD_VERSION
+ 
+@@ -30,7 +30,7 @@ RUN VERSION=${BUILD_VERSION} make manager-dockerfile
+ 
+ # Use distroless as minimal base image to package the manager binary
+ # Refer to https://github.com/GoogleContainerTools/distroless for more details
+-FROM gcr.io/distroless/static:nonroot
++FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:nonroot-arm
+ WORKDIR /
+ COPY --from=builder /workspace/bin/keda .
+ USER nonroot:nonroot
+diff --git a/Dockerfile.adapter b/Dockerfile.adapter
+index 331617f..b96a8f1 100644
+--- a/Dockerfile.adapter
++++ b/Dockerfile.adapter
+@@ -1,5 +1,5 @@
+ # Build the manager binary
+-FROM golang:1.15.6 as builder
++FROM --platform=$BUILDPLATFORM golang:1.15.6 as builder
+ 
+ ARG BUILD_VERSION
+ 
+@@ -32,7 +32,7 @@ RUN VERSION=${BUILD_VERSION} make adapter-dockerfile
+ 
+ # Use distroless as minimal base image to package the manager binary
+ # Refer to https://github.com/GoogleContainerTools/distroless for more details
+-FROM gcr.io/distroless/static:nonroot
++FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:nonroot-arm
+ WORKDIR /
+ COPY --from=builder --chown=nonroot:nonroot /apiserver.local.config  /apiserver.local.config
+ COPY --from=builder /workspace/bin/keda-adapter .
+diff --git a/Makefile b/Makefile
+index b99a3cf..14c4427 100644
+--- a/Makefile
++++ b/Makefile
+@@ -10,7 +10,7 @@ IMAGE_ADAPTER    = $(IMAGE_REGISTRY)/$(IMAGE_REPO)/keda-metrics-apiserver:$(VERS
+ 
+ IMAGE_BUILD_TOOLS = $(IMAGE_REGISTRY)/$(IMAGE_REPO)/build-tools:main
+ 
+-ARCH       ?=amd64
++ARCH       ?=arm
+ CGO        ?=0
+ TARGET_OS  ?=linux
+ 
+@@ -139,8 +139,8 @@ build: manifests set-version manager adapter
+ 
+ # Build the docker image
+ docker-build:
+-	docker build . -t ${IMAGE_CONTROLLER} --build-arg BUILD_VERSION=${VERSION}
+-	docker build -f Dockerfile.adapter -t ${IMAGE_ADAPTER} . --build-arg BUILD_VERSION=${VERSION}
++	docker buildx build --platform linux/arm/v7 . -t ${IMAGE_CONTROLLER} --build-arg BUILD_VERSION=${VERSION} --load
++	docker buildx build --platform linux/arm/v7 -f Dockerfile.adapter -t ${IMAGE_ADAPTER} . --build-arg BUILD_VERSION=${VERSION} --load
+ 
+ # Build KEDA Operator binary
+ .PHONY: manager
